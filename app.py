@@ -16,6 +16,16 @@ def get_nuevo_contrato():
         print(error)
     return contrato
 
+def formateo_poliza(poliza, cia, ramo):
+    cia_poliza = ''
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT formateo_cia_poliza(%s, %s, %s)", (poliza,cia,ramo))
+        cia_poliza = cur.fetchone()[0]
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(error)
+    return cia_poliza
+
 def cargar_file():
 
     # Importar archivo XLSX con Pandas
@@ -30,7 +40,8 @@ def cargar_file():
         
         for i,item in enumerate(data):
             insertar_poliza_bd(item)
-            if i >= 10:
+            
+            if i >= 100:
                 break
 
 def only_numerics(s):
@@ -135,19 +146,17 @@ def dataCliente(r):
     )
 
 def insertar_poliza_bd(r):
-    # if r["SITUACION"] == "Suspendida": 
-    #     return
     
     contrato = get_nuevo_contrato()
 
     sql_poliza = """INSERT INTO polizas 
-            (poliza,cia_poliza,compania,producto,fecha_efecto,fecha_vencimiento,situacion,nif,nif_asegurado,ase_es_asegurado,matricula,forma_pago,
+            (poliza,cia_poliza,cia_poliza_original,compania,producto,fecha_efecto,fecha_vencimiento,situacion,nif,nif_asegurado,ase_es_asegurado,matricula,forma_pago,
             tipo_poliza,objeto,comentario,fecha_alta,canal,iban,sucursal,colaborador,created_by) 
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING poliza"""
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING poliza"""
 
-    # sql_poliza_autos = """INSERT INTO polizas_autos 
-    #         (poliza,marca,modelo,uso,fecha_matriculacion,clase,cobertura,created_by) 
-    #         VALUES (%s,%s,%s,%s,%s,%s,%s,%s)"""
+    sql_poliza_autos = """INSERT INTO polizas_autos 
+            (poliza,marca,modelo,created_by) 
+            VALUES (%s,%s,%s,%s)"""
     
     # Corregir nif
     r["NIF"] = re.sub(r'[^a-zA-Z0-9]', '', r['NIF'])
@@ -162,13 +171,8 @@ def insertar_poliza_bd(r):
 
     # Busca los valores usando los patrones regex
     r["MATRICULA"] = obtener_valor(r['RIESGO'], patron_matricula) or ''
-    r["MARCA"] = obtener_valor(r['RIESGO'], patron_marca)
-    r["MODELO"] = obtener_valor(r['RIESGO'], patron_modelo)
-
-    r['COBERTURA'] = None
-    r['FRANQUICIA'] = None
-    r['CLASE'] = None
-    r['SUBMODELO'] = None
+    r["MARCA"] = obtener_valor(r['RIESGO'], patron_marca) or ''
+    r["MODELO"] = obtener_valor(r['RIESGO'], patron_modelo) or ''
 
     try:
         cur = conn.cursor()
@@ -176,10 +180,11 @@ def insertar_poliza_bd(r):
         # print('\ncliente...',r["NIF"])
         insertar_cliente_bd(dataCliente(r))
         # insertar poliza
-        print('poliza...',r["POLIZA"])
+        # print('poliza...',r["POLIZA"])
         cur.execute(sql_poliza, values_poliza(contrato, r))
         # insertar poliza autos
-        # cur.execute(sql_poliza_autos, values_poliza_auto(contrato, r))
+        if int(str(get_ramo(r['RAMO']))[0]) == 6: 
+            cur.execute(sql_poliza_autos, values_poliza_auto(contrato, r))
    
         conn.commit()
         cur.close()
@@ -199,32 +204,8 @@ def values_poliza_auto(contrato, r):
         contrato, 
         r["MARCA"], 
         r["MODELO"], 
-        1, # uso particular
-        valida_fecha(r["MATRICULACION"]), 
-        get_clase(r["CLASE"]),
-        get_cobertura(r["COBERTURA"]),
         created_by,
     )
-
-def get_cobertura(valor):
-    if "Todo Riesgo - Franquicia" in valor or "Todo Riesgo - Todo Riesgo con Franquicia" in valor:
-        return 45
-    elif "Todo Riesgo - Todo Riesgo" in valor:
-        return 46
-    else:
-        return 0
-
-def get_clase(valor):
-    if "Turismo" in valor or "FurgoTurismo" in valor:
-        return 1
-    elif "Moto" in valor:
-        return 30
-    elif "Scooter" in valor:
-        return 32
-    elif "Furgoneta" in valor:
-        return 3
-    else:
-        return 0
 
 def get_ramo(nombre_ramo):
     ramos = [
@@ -313,20 +294,27 @@ def get_compania(nombre_compania):
     return None
 
 def get_formapago(valor):
+    if valor == 'Temporal':
+        return 'UNI'
+    
     return valor[:3].upper()
 
 def values_poliza(contrato, r):
 
-    comentario = ''
-    # comentario = f'''COBERTURA: {r['COBERTURA']}\n'''
-    # comentario += f'''FRANQUICIA: {r['FRANQUICIA']}\n'''
-    # comentario += f'''CLASE: {r['CLASE']}\n''' 
+    comentario = r['RIESGO']
+
+    _cia_poliza_original = r['POLIZA']
+    _compania = get_compania(r['COMPANIA'])
+    _ramo =get_ramo(r['RAMO'])
+
+    poliza_formateada = formateo_poliza(_cia_poliza_original, _compania, _ramo)
 
     return (
         contrato,
-        r['POLIZA'],
-        get_compania(r['COMPANIA']),
-        get_ramo(r['RAMO']),
+        poliza_formateada,
+        _cia_poliza_original,
+        _compania,
+        _ramo,
         valida_fecha(r['EFECTO']),
         valida_fecha(r['VENCIMIENTO']),
         situacion,
