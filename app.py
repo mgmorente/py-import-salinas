@@ -183,7 +183,7 @@ def insertar_poliza_bd(r):
         # print('poliza...',r["POLIZA"])
         cur.execute(sql_poliza, values_poliza(contrato, r))
         # insertar poliza autos
-        if int(str(get_ramo(r['RAMO']))[0]) == 6: 
+        if int(str(get_ramo(r))[0]) == 6: 
             cur.execute(sql_poliza_autos, values_poliza_auto(contrato, r))
    
         conn.commit()
@@ -207,7 +207,11 @@ def values_poliza_auto(contrato, r):
         created_by,
     )
 
-def get_ramo(nombre_ramo):
+def get_ramo(r):
+    
+    nombre_ramo = r['RAMO']
+    poliza = r['POLIZA']
+
     ramos = [
         ("1501-Turismos y Furgonetas", 614),
         ("1502-Camiones y Cabezas Tractoras", 601),
@@ -252,6 +256,41 @@ def get_ramo(nombre_ramo):
     
     for ramo, numero in ramos:
         if ramo == nombre_ramo:
+            return numero
+    
+    # excepciones
+    excepciones = [
+        ("78217307571","417"),
+        ("3V-G-140000697","406"),
+        ("VH-5-966143769","417"),
+        ("78217307506","417"),
+        ("018430815","417"),
+        ("08-0086802","417"),
+        ("3V-G-140000401","406"),
+        ("3V-G-140000512","406"),
+        ("78217306110","417"),
+        ("750032891","417"),
+        ("62112859","415"),
+        ("41-0088383","417"),
+        ("3V-G-140000219","406"),
+        ("3V-G-140000220","406"),
+        ("3V-G-140000259","406"),
+        ("3V-G-140000457","406"),
+        ("3V-G-140000468","406"),
+        ("3V-G-140000467","406"),
+        ("1V-G-140000037","403"),
+        ("3V-G-140000550","407"),
+        ("3V-G-140000549","406"),
+        ("3V-G-140000356","406"),
+        ("BIVS009306","407"),
+        ("BIVS009304","406"),
+        ("18-0121909","415"),
+        ("08-0079018","417"),
+        ("41-0088290","417"),
+    ]
+
+    for _poliza, numero in excepciones:
+        if _poliza == poliza:
             return numero
     
     # Si no se encuentra el ramo, buscar el número entero antes del guion
@@ -305,7 +344,7 @@ def values_poliza(contrato, r):
 
     _cia_poliza_original = r['POLIZA']
     _compania = get_compania(r['COMPANIA'])
-    _ramo =get_ramo(r['RAMO'])
+    _ramo =get_ramo(r)
 
     poliza_formateada = formateo_poliza(_cia_poliza_original, _compania, _ramo)
 
