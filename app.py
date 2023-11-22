@@ -16,11 +16,11 @@ def get_nuevo_contrato():
         print(error)
     return contrato
 
-def formateo_poliza(poliza, cia, ramo):
+def formateo_poliza(r):
     cia_poliza = ''
     try:
         cur = conn.cursor()
-        cur.execute("SELECT formateo_cia_poliza(%s, %s, %s)", (poliza,cia,ramo))
+        cur.execute("SELECT formateo_cia_poliza(%s, %s, %s)", (r['POLIZA'],r['COMPANIA_PACC'],r['RAMO_PACC']))
         cia_poliza = cur.fetchone()[0]
     except (Exception, psycopg2.DatabaseError) as error:
         print(error)
@@ -41,14 +41,14 @@ def cargar_file():
         for i,item in enumerate(data):
             insertar_poliza_bd(item)
             
-            if i >= 100:
-                break
+            # if i >= 100:
+            #     break
 
 def only_numerics(s):
     return ''.join(filter(str.isdigit, s))
 
 def valida_cadena(texto, longitud = 150):
-    if texto is None:
+    if texto is None or texto == 'None':
         return ''
     else:     
         return texto[0:longitud-1]
@@ -104,19 +104,27 @@ def insertar_cliente_bd(values):
 
     return
 
+def valida_email(valor):
+
+    correos_separados = valor.split(';')
+
+    # Tomar el primer correo electrónico (si existe)
+    primer_correo = correos_separados[0].strip() if correos_separados else None
+    return valida_cadena(primer_correo)
+
 def dataCliente(r):
 
     _nombre = r['NOMBRE']
     _nif = r['NIF']
     _domicilio = r['DOMICILIO']
     _cpostal = r['CPOSTAL']
-    _poblacion = r['PROVINCIA']
+    _poblacion = r['POBLACION']
     _telefono = r['TELEFONO']
     _movil = r['MOVIL']
-    _email = r['EMAIL']
+    _email = valida_email(r['EMAIL'])
     _nacimiento = None
     _carnet = None
-
+    
     return (
         _nif,
         valida_cadena(_nombre, 45),
@@ -139,7 +147,7 @@ def dataCliente(r):
         _cpostal[0:2],
         'now()',  # fecha alta
         sucursal,  # sucursal
-        colaborador,  # colaborador
+        r['COLABORADOR_PACC'],  # colaborador
         'now()',  # create_at
         created_by,  # created_by
         '',  # passweb
@@ -173,6 +181,10 @@ def insertar_poliza_bd(r):
     r["MATRICULA"] = obtener_valor(r['RIESGO'], patron_matricula) or ''
     r["MARCA"] = obtener_valor(r['RIESGO'], patron_marca) or ''
     r["MODELO"] = obtener_valor(r['RIESGO'], patron_modelo) or ''
+
+    r["COMPANIA_PACC"] = get_compania(r['COMPANIA'])
+    r["RAMO_PACC"] = get_ramo(r)
+    r["COLABORADOR_PACC"] = get_colaborador(r["COMPANIA_PACC"])
 
     try:
         cur = conn.cursor()
@@ -338,22 +350,25 @@ def get_formapago(valor):
     
     return valor[:3].upper()
 
+def get_colaborador(valor):
+    if valor in [8,9,111,26]:
+        return '14010195'
+    else:
+        return '14010196'
+
 def values_poliza(contrato, r):
 
-    comentario = r['RIESGO']
+    comentario = r['RIESGO'] + "\n" + r['EMAIL']
 
     _cia_poliza_original = r['POLIZA']
-    _compania = get_compania(r['COMPANIA'])
-    _ramo =get_ramo(r)
-
-    poliza_formateada = formateo_poliza(_cia_poliza_original, _compania, _ramo)
+    _cia_poliza_formateada = formateo_poliza(r)
 
     return (
         contrato,
-        poliza_formateada,
+        _cia_poliza_formateada,
         _cia_poliza_original,
-        _compania,
-        _ramo,
+        r['COMPANIA_PACC'],
+        r['RAMO_PACC'],
         valida_fecha(r['EFECTO']),
         valida_fecha(r['VENCIMIENTO']),
         situacion,
@@ -367,9 +382,9 @@ def values_poliza(contrato, r):
         comentario,
         'now()',
         canal,
-        r['CCC'],
+        valida_cadena(r['CCC']),
         sucursal,
-        colaborador,
+        r['COLABORADOR_PACC'],
         created_by,
     )
             
@@ -383,7 +398,7 @@ compania = 0
 ramo = 0
 canal = 6
 sucursal = '1401'
-colaborador = '14010195'
+colaborador = ''
 created_by = 'imp-salinas'
 
 # read database configuration
