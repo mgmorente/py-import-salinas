@@ -17,9 +17,11 @@ def cargar_file():
     # Recorrer el archivo JSON
     with open('fechas.json') as file:
         data = json.load(file)
+
+        with open('querys_fechas.txt', 'w') as file_output:
         
-        for i,item in enumerate(data):
-            update_fechas(item)
+            for i,item in enumerate(data):
+                update_fechas(file_output,item)
             
 def valida_fecha(fecha):
     
@@ -40,22 +42,25 @@ def valida_fecha(fecha):
     
     return fecha
 
-def update_fechas(r):
+def update_fechas(file_output, r):
     
     nif = re.sub(r'[^a-zA-Z0-9]', '', r['NIF'])
-    nacimiento = valida_fecha(r['NACIMIENTO']) or 'null'
-    carnet = valida_fecha(r['CARNET']) or 'null'
-
-    if carnet != 'null' or nacimiento != 'null':
-        query_clientes = f'''UPDATE clientes SET fecha_nacimiento = '{nacimiento}', fecha_carnet = '{carnet}' WHERE created_by = '{created_by}' AND nif = '{nif}';'''
-        print(query_clientes)
-    
-    matriculacion = valida_fecha(r['MATRICULACION']) or 'null'
+    nacimiento = valida_fecha(r['NACIMIENTO'])
+    carnet = valida_fecha(r['CARNET'])
+    matriculacion = valida_fecha(r['MATRICULACION'])
     matricula = get_matricula(r)
-   
-    if matricula != 'null':
-        query_autos = f'''UPDATE polizas_autos SET fecha_matriculacion = '{matriculacion}' WHERE created_by = '{created_by}' AND matricula = '{matricula}';'''
-        print(query_autos)
+
+    if nacimiento is not None:
+        query = f'''UPDATE clientes SET fecha_nacimiento = '{nacimiento}' WHERE created_by = '{created_by}' AND nif = '{nif}';'''
+        file_output.write(str(query) + '\n')
+
+    if carnet is not None:
+        query = f'''UPDATE clientes SET fecha_carnet = '{carnet}' WHERE created_by = '{created_by}' AND nif = '{nif}';'''
+        file_output.write(str(query) + '\n')
+    
+    if matriculacion is not None:
+        query = f'''UPDATE polizas_autos a SET fecha_matriculacion = '{matriculacion}' FROM polizas p WHERE p.poliza = a.poliza AND a.created_by = '{created_by}' AND matricula = '{matricula}';'''
+        file_output.write(str(query) + '\n')
 
     return
 
