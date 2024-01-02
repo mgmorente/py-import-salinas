@@ -350,6 +350,16 @@ def get_formapago(valor):
     
     return valor[:3].upper()
 
+def get_canalpago(valor):
+    if valor == 'COMPAÑÍA':
+        return 6  
+    elif valor == 'REMESA':
+        return 4
+    elif valor == 'TRANSFERENCIA':
+        return 0
+    else:
+        return 9
+
 def get_colaborador(valor):
     if valor in [8,9,111,26]:
         return '14010195'
@@ -381,7 +391,7 @@ def values_poliza(contrato, r):
         r['RIESGO'],        # objeto
         comentario,
         'now()',
-        canal,
+        get_canalpago(r['MEDIOPAGO']),
         valida_cadena(r['CCC']),
         sucursal,
         r['COLABORADOR_PACC'],
@@ -396,7 +406,7 @@ tipo_poliza = 1
 situacion = 1
 compania = 0
 ramo = 0
-canal = 6
+canal = 0
 sucursal = '1401'
 colaborador = ''
 created_by = 'imp-salinas'

@@ -43,16 +43,19 @@ def valida_fecha(fecha):
 def update_fechas(r):
     
     nif = re.sub(r'[^a-zA-Z0-9]', '', r['NIF'])
-    nacimiento = valida_fecha(r['NACIMIENTO'])
-    carnet = valida_fecha(r['CARNET'])
-    matriculacion = valida_fecha(r['MATRICULACION'])
+    nacimiento = valida_fecha(r['NACIMIENTO']) or 'null'
+    carnet = valida_fecha(r['CARNET']) or 'null'
+
+    if carnet != 'null' or nacimiento != 'null':
+        query_clientes = f'''UPDATE clientes SET fecha_nacimiento = '{nacimiento}', fecha_carnet = '{carnet}' WHERE created_by = '{created_by}' AND nif = '{nif}';'''
+        print(query_clientes)
+    
+    matriculacion = valida_fecha(r['MATRICULACION']) or 'null'
     matricula = get_matricula(r)
-
-    query_clientes = f'''UPDATE clientes SET fecha_nacimiento = '{nacimiento}', fecha_carnet = '{carnet}' WHERE created_by = '{created_by}' AND nif = '{nif}';'''
-    query_autos = f'''UPDATE polizas_autos SET fecha_matriculacion = '{matriculacion}' WHERE created_by = '{created_by}' AND matricula = '{matricula}';'''
-
-    print(query_clientes)
-    print(query_autos)
+   
+    if matricula != 'null':
+        query_autos = f'''UPDATE polizas_autos SET fecha_matriculacion = '{matriculacion}' WHERE created_by = '{created_by}' AND matricula = '{matricula}';'''
+        print(query_autos)
 
     return
 
