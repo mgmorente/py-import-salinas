@@ -356,7 +356,7 @@ def get_canalpago(valor):
     elif valor == 'REMESA':
         return 4
     elif valor == 'TRANSFERENCIA':
-        return 0
+        return 1
     else:
         return 9
 
